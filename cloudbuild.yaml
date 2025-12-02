@@ -5,8 +5,8 @@
 
 substitutions:
   # Default values, can be overridden when submitting the build
-  _REGION: us-central1
-  _REPOSITORY: cloud-run-source-deploy  # Same as github.com/sermpezis/m-lab-servers-dashboard
+  _REGION: us-east1
+  _REPOSITORY: m-lab
   _SERVICE_NAME: iqb-prototype
   _MEMORY: 1Gi
   _CPU: "2"
