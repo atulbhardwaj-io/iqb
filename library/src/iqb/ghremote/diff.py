@@ -108,6 +108,8 @@ def diff(
     # Phase 2: iterate accepted manifest keys in sorted order
     seen: set[str] = set()
     for key in sorted(manifest.files):
+        if not _validate_cache_path(key):
+            continue
         if acceptp is not None and not acceptp(key):
             continue
         seen.add(key)

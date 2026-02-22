@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
 
 from iqb.cli import cli
+from iqb.ghremote.diff import DiffEntry, DiffState
 
 
 def _sha256(content: bytes) -> str:
@@ -364,3 +365,41 @@ class TestCachePullMetrics:
         assert spans_by_file[_FILE_A]["content_length"] == len(content_a)
         assert spans_by_file[_FILE_B]["bytes"] == len(content_b)
         assert spans_by_file[_FILE_B]["content_length"] == len(content_b)
+
+
+class TestCachePullPathTraversalProtection:
+    """Traversal-style manifest paths are rejected before download."""
+
+    @patch("iqb.cli.cache_pull.diff")
+    @patch("iqb.cli.cache_pull.requests.Session")
+    def test_rejects_paths_outside_data_dir(
+        self,
+        mock_session_cls: MagicMock,
+        mock_diff: MagicMock,
+        tmp_path: Path,
+    ):
+        outside = tmp_path.parent / "outside_guard_test.txt"
+        if outside.exists():
+            outside.unlink()
+
+        mock_diff.return_value = [
+            DiffEntry(
+                file="../outside_guard_test.txt",
+                url="https://example.com/poc",
+                remote_sha256=_sha256(b"poc"),
+                local_sha256=None,
+                state=DiffState.ONLY_REMOTE,
+            )
+        ]
+
+        mock_session = MagicMock()
+        mock_session_cls.return_value = mock_session
+        _write_manifest(tmp_path, {})
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["cache", "pull", "-d", str(tmp_path)])
+
+        assert result.exit_code == 1
+        assert "Unsafe manifest path" in result.output
+        assert not outside.exists()
+        mock_session.get.assert_not_called()

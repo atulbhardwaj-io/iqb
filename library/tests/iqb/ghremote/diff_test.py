@@ -258,6 +258,27 @@ class TestDiffIsIterator:
         assert not isinstance(result, (list, tuple))
 
 
+class TestDiffManifestPathValidation:
+    """Invalid manifest paths are ignored during diff generation."""
+
+    def test_skips_invalid_manifest_path(self, tmp_path: Path):
+        valid_entry = FileEntry(sha256="a" * 64, url="https://example.com/valid")
+        invalid_entry = FileEntry(sha256="b" * 64, url="https://example.com/invalid")
+        manifest = Manifest(
+            v=0,
+            files={
+                _FILE_A: valid_entry,
+                "../../outside.txt": invalid_entry,
+            },
+        )
+
+        results = list(diff(manifest, tmp_path))
+
+        assert len(results) == 1
+        assert results[0].file == _FILE_A
+        assert results[0].state == DiffState.ONLY_REMOTE
+
+
 class TestValidateCachePath:
     """Tests for _validate_cache_path covering all branches."""
 

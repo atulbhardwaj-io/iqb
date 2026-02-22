@@ -40,6 +40,17 @@ def _now() -> str:
     return datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S %z")
 
 
+def _safe_dest_path(data_dir: Path, rel_path: str) -> Path:
+    """Resolve destination path and ensure it stays under data_dir."""
+    base = data_dir.resolve()
+    dest = (data_dir / rel_path).resolve()
+    try:
+        dest.relative_to(base)
+    except ValueError as exc:
+        raise ValueError(f"Unsafe manifest path: {rel_path}") from exc
+    return dest
+
+
 def _download_one(
     entry: DiffEntry,
     data_dir: Path,
@@ -55,7 +66,7 @@ def _download_one(
     error: str | None = None
     assert entry.url is not None
     assert entry.remote_sha256 is not None
-    dest = data_dir / entry.file
+    dest = _safe_dest_path(data_dir, entry.file)
     dest.parent.mkdir(parents=True, exist_ok=True)
     task_id = progress.add_task(_short_name(entry.file), total=None)
     try:
